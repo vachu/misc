@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	chain "github.com/vachu/misc/pipeline"
+	chain "../pipeline"
 )
 
 func feedInput(in chan interface{}) {
@@ -29,7 +29,7 @@ func main() {
 		log.Fatalln("One or more channels not created as expected")
 	}
 
-	feedInput(in)
+	go feedInput(in)
 
 	// Print output from the end of the chain
 	for o := range out {

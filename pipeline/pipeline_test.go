@@ -13,7 +13,7 @@ func TestMergeChannels(t *testing.T) {
 	}
 }
 
-func prepareMergeChannelsTestBed(t *testing.T) ([]string, chan interface {}) {
+func prepareMergeChannelsTestBed(t *testing.T) ([]string, chan interface{}) {
 	testdata := []string{
 		"One",
 		"Two",
@@ -32,13 +32,13 @@ func prepareMergeChannelsTestBed(t *testing.T) ([]string, chan interface {}) {
 		make(chan interface{}, 1),
 		make(chan interface{}, 1),
 	}
-	chMerged := mergeChannels(chn...)
+	chMerged := MergeChannels(chn...)
 
 	go func() {
 		for i, td := range testdata {
 			i := i % len(chn)
-			//t.Logf("DEBUG: i = %d\n", i)
-			chn[i] <- td + " - CORRUPTED"
+			//			t.Logf("DEBUG: i = %d\n", i)
+			chn[i] <- td // + " - CORRUPTED"
 		}
 		for _, ch := range chn {
 			close(ch)

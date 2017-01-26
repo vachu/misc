@@ -2,7 +2,7 @@ package pipeline
 
 import "sync"
 
-func node(fn func(interface{}) (interface{}, error), in, out, diag chan interface{}) {
+func Node(fn func(interface{}) (interface{}, error), in, out, diag chan interface{}) {
 	defer close(out)
 	defer close(diag)
 
@@ -32,18 +32,18 @@ func BuildPipeline(fn ...func(interface{}) (interface{}, error)) (in, out, diag 
 			outs[i] = make(chan interface{}, 1)
 			diags[i] = make(chan interface{}, 1)
 			if i == 0 {
-				go node(fn[i], in, outs[i], diags[i])
+				go Node(fn[i], in, outs[i], diags[i])
 			} else {
-				go node(fn[i], outs[i-1], outs[i], diags[i])
+				go Node(fn[i], outs[i-1], outs[i], diags[i])
 			}
 		}
 		out = outs[len(fn)-1]
-		diag = mergeChannels(diags...)
+		diag = MergeChannels(diags...)
 	}
 	return
 }
 
-func mergeChannels(outs ...chan interface{}) (merged chan interface{}) {
+func MergeChannels(outs ...chan interface{}) (merged chan interface{}) {
 	merged = nil
 	if len(outs) > 0 {
 		for _, ch := range outs {
@@ -57,7 +57,7 @@ func mergeChannels(outs ...chan interface{}) (merged chan interface{}) {
 		merged = make(chan interface{}, len(outs)*1)
 
 		go func() {
-			toBeDoneCtr := len(outs)
+			openChannelsCtr := len(outs)
 			for {
 				for i := 0; i < len(outs); i++ {
 					select {
@@ -65,13 +65,13 @@ func mergeChannels(outs ...chan interface{}) (merged chan interface{}) {
 						if isOpen {
 							merged <- data
 						} else {
-							if toBeDoneCtr > 0 {
+							if openChannelsCtr > 0 {
 								wg.Done()
-								toBeDoneCtr--
+								openChannelsCtr--
 							}
 						}
 					default:
-						if toBeDoneCtr == 0 {
+						if openChannelsCtr == 0 {
 							return
 						}
 					}
