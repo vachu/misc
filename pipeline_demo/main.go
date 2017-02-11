@@ -9,34 +9,36 @@ import (
 	chain "../pipeline"
 )
 
-func feedInput(in chan interface{}) {
+func feedInput(in chan<- interface{}) {
 	defer close(in)
 
-	in <- 1234
+	in <- 123
 	in <- "First"
 	in <- "Second"
 	in <- "Third"
 }
 
 func main() {
-	in, out, diag := chain.BuildPipeline(
+	inChannel, outChannel, diagChannel := chain.BuildPipeline2(true,
 		Process1,
 		Process2,
 		Process3,
 		toUpper,
 	)
-	if in == nil || out == nil {
+	if inChannel == nil || outChannel == nil {
 		log.Fatalln("One or more channels not created as expected")
 	}
 
-	go feedInput(in)
-
-	// Print output from the end of the chain
-	for o := range out {
-		fmt.Println(o)
+	go feedInput(inChannel)
+	if diagChannel != nil {
+		go func() {
+			for d := range diagChannel {
+				fmt.Fprintln(os.Stderr, d)
+			}
+		}()
 	}
-	for d := range diag {
-		fmt.Fprintln(os.Stderr, "DIAG:", d)
+	for o := range outChannel {
+		fmt.Println(o)
 	}
 }
 
