@@ -19,7 +19,7 @@ func main() {
 		}
 	})
 
-	for _, n := range []int{11111, 2222, 333, 44, 5, 5, 5, 5} {
+	for _, n := range []int{1, 2, 3, 4, 5, 5, 5, 5} {
 		bst.Add(n)
 	}
 	bst.ToXML(os.Stdout)

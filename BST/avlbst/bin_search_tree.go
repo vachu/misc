@@ -98,11 +98,14 @@ func (bt *BinarySearchTree) Add(data interface{}) error {
 // ToXML ...
 func (bt *BinarySearchTree) ToXML(w io.Writer) error {
 	fmt.Fprintln(w, xml.Header)
+	fmt.Fprintf(w, "<BinarySearchTree isAVLTree=\"%v\" nodeCount=\"%d\">\n", bt.IsAvlTree(), bt.NodeCount)
 
 	enc := xml.NewEncoder(w)
 	enc.Indent("\t", "\t")
 	if err := enc.Encode(bt.root); err != nil {
 		return err
 	}
+
+	fmt.Fprintln(w, "\n</BinarySearchTree>")
 	return nil
 }
