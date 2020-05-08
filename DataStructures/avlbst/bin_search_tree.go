@@ -4,26 +4,18 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"os"
 )
 
 type node struct {
-	Data    interface{} `xml:"data,attr"`
-	Count   uint8       `xml:"count,attr"`
-	balance int8
-	Left    *leftNode
-	Right   *rightNode
-	parent  *node
+	Data          interface{} `xml:"data,attr"`
+	Count         uint8       `xml:"count,attr"`
+	BalanceFactor int8        `xml:"balanceFactor,attr"`
+	Left, Right   *node
+	// parent     *node
 }
 
-type rootNode struct {
-	*node
-}
-
-type leftNode struct {
-	*node
-}
-
-type rightNode struct {
+type root struct {
 	*node
 }
 
@@ -32,15 +24,18 @@ type Comparer func(data1, data2 interface{}) int
 
 // BinarySearchTree ...
 type BinarySearchTree struct {
-	root             *rootNode
-	IsHeightBalanced bool   `xml:"isAVLTree,attr"`
-	NodeCount        uint32 `xml:"noOfNodes,attr"`
+	root             *root
+	IsHeightBalanced bool
+	NodeCount        uint32
 	cmp              Comparer
 }
 
 // NewBinarySearchTree ...
 func NewBinarySearchTree(isAvlTree bool, cmp func(d1, d2 interface{}) int) *BinarySearchTree {
-	return &BinarySearchTree{nil, isAvlTree, 0, cmp}
+	if cmp != nil {
+		return &BinarySearchTree{nil, isAvlTree, 0, cmp}
+	}
+	return nil
 }
 
 // IsAvlTree ...
@@ -65,34 +60,51 @@ func (bt *BinarySearchTree) Add(data interface{}) error {
 	newNode := &node{Data: data, Count: 1}
 	bt.NodeCount++
 	if bt.IsEmpty() {
-		bt.root = &rootNode{newNode}
+		bt.root = &root{newNode}
 	} else {
+		var node2Rotate *node
 	FOR:
 		for n := bt.root.node; n != nil; {
 			switch bt.cmp(newNode.Data, n.Data) {
 			case -1:
+				n.BalanceFactor--
+				if n.BalanceFactor <= -2 {
+					node2Rotate = n
+				}
 				if n.Left == nil {
-					newNode.parent = n
-					n.Left = &leftNode{newNode}
+					//newNode.parent = n
+					n.Left = newNode
 					break FOR
 				}
-				n = n.Left.node
+				n = n.Left
 			case 0:
 				n.Count++
 				bt.NodeCount-- // since no new node is created here
 				break FOR
 			case 1:
+				n.BalanceFactor++
+				if n.BalanceFactor >= 2 {
+					node2Rotate = n
+				}
 				if n.Right == nil {
-					newNode.parent = n
-					n.Right = &rightNode{newNode}
+					//newNode.parent = n
+					n.Right = newNode
 					break FOR
 				}
-				n = n.Right.node
+				n = n.Right
 			} // switch
 		} // for
+		bt.rebalance(node2Rotate)
 	} // else
 
 	return nil
+}
+
+func (bt *BinarySearchTree) rebalance(n *node) {
+	if !bt.IsAvlTree() || n == nil || (n.BalanceFactor < 2 && n.BalanceFactor > -2) {
+		return
+	}
+
 }
 
 // ToXML ...
@@ -108,4 +120,23 @@ func (bt *BinarySearchTree) ToXML(w io.Writer) error {
 
 	fmt.Fprintln(w, "\n</BinarySearchTree>")
 	return nil
+}
+
+// Run ...
+func Run() {
+	bst := NewBinarySearchTree(false, func(d1, d2 interface{}) int {
+		v1, v2 := d1.(int), d2.(int)
+		if v1 < v2 {
+			return -1
+		} else if v1 == v2 {
+			return 0
+		} else {
+			return 1
+		}
+	})
+
+	for _, n := range []int{1, 2, 3, 4, 5} {
+		bst.Add(n)
+	}
+	bst.ToXML(os.Stdout)
 }
