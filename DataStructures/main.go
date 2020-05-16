@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/vachu/quicksort"
+	"github.com/vachu/avlbst"
 )
 
 //
 func main() {
 	fmt.Println("==========================")
-	quicksort.Run()
+	avlbst.Run()
 }

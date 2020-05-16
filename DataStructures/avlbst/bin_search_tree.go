@@ -8,11 +8,9 @@ import (
 )
 
 type node struct {
-	Data          interface{} `xml:"data,attr"`
-	Count         uint8       `xml:"count,attr"`
-	BalanceFactor int8        `xml:"balanceFactor,attr"`
-	Left, Right   *node
-	// parent     *node
+	Data        interface{} `xml:"data,attr"`
+	Left, Right *node
+	parent      *node
 }
 
 type root struct {
@@ -48,6 +46,13 @@ func (bt *BinarySearchTree) IsEmpty() bool {
 	return bt.root == nil
 }
 
+func getParent(n *node) *node {
+	if n != nil {
+		return n.parent
+	}
+	return nil
+}
+
 // Add ...
 func (bt *BinarySearchTree) Add(data interface{}) error {
 	if bt.cmp == nil {
@@ -57,51 +62,37 @@ func (bt *BinarySearchTree) Add(data interface{}) error {
 		return fmt.Errorf("'nil' data provided")
 	}
 
-	newNode := &node{Data: data, Count: 1}
-	bt.NodeCount++
+	newNode := &node{Data: data}
 	if bt.IsEmpty() {
 		bt.root = &root{newNode}
 	} else {
-		var node2Rotate *node
 	FOR:
 		for n := bt.root.node; n != nil; {
 			switch bt.cmp(newNode.Data, n.Data) {
 			case -1:
-				n.BalanceFactor--
-				if n.BalanceFactor <= -2 {
-					node2Rotate = n
-				}
 				if n.Left == nil {
-					//newNode.parent = n
+					newNode.parent = n
 					n.Left = newNode
+					bt.NodeCount++
 					break FOR
 				}
 				n = n.Left
-			case 0:
-				n.Count++
-				bt.NodeCount-- // since no new node is created here
-				break FOR
 			case 1:
-				n.BalanceFactor++
-				if n.BalanceFactor >= 2 {
-					node2Rotate = n
-				}
 				if n.Right == nil {
-					//newNode.parent = n
+					newNode.parent = n
 					n.Right = newNode
+					bt.NodeCount++
 					break FOR
 				}
 				n = n.Right
 			} // switch
 		} // for
-		bt.rebalance(node2Rotate)
 	} // else
-
 	return nil
 }
 
 func (bt *BinarySearchTree) rebalance(n *node) {
-	if !bt.IsAvlTree() || n == nil || (n.BalanceFactor < 2 && n.BalanceFactor > -2) {
+	if !bt.IsAvlTree() || n == nil {
 		return
 	}
 
