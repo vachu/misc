@@ -1,6 +1,7 @@
 package avlbst
 
 import (
+	"container/list"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -46,13 +47,6 @@ func (bt *BinarySearchTree) IsEmpty() bool {
 	return bt.root == nil
 }
 
-func getParent(n *node) *node {
-	if n != nil {
-		return n.parent
-	}
-	return nil
-}
-
 // Add ...
 func (bt *BinarySearchTree) Add(data interface{}) error {
 	if bt.cmp == nil {
@@ -63,17 +57,20 @@ func (bt *BinarySearchTree) Add(data interface{}) error {
 	}
 
 	newNode := &node{Data: data}
+	bt.NodeCount++
 	if bt.IsEmpty() {
 		bt.root = &root{newNode}
 	} else {
 	FOR:
 		for n := bt.root.node; n != nil; {
 			switch bt.cmp(newNode.Data, n.Data) {
+			case 0:
+				bt.NodeCount-- // as newNode is not added to tree
+				return fmt.Errorf("data already available in BST")
 			case -1:
 				if n.Left == nil {
 					newNode.parent = n
 					n.Left = newNode
-					bt.NodeCount++
 					break FOR
 				}
 				n = n.Left
@@ -81,27 +78,124 @@ func (bt *BinarySearchTree) Add(data interface{}) error {
 				if n.Right == nil {
 					newNode.parent = n
 					n.Right = newNode
-					bt.NodeCount++
 					break FOR
 				}
 				n = n.Right
 			} // switch
 		} // for
 	} // else
+	bt.rebalance(newNode)
+	return nil // newNode added to BST
+}
+
+func getParent(n *node) *node {
+	if n != nil {
+		return n.parent
+	}
 	return nil
 }
 
-func (bt *BinarySearchTree) rebalance(n *node) {
-	if !bt.IsAvlTree() || n == nil {
+func getHeight(n *node) int {
+	if n == nil {
+		return 0
+	}
+	lHeight := getHeight(n.Left)
+	rHeight := getHeight(n.Right)
+	if lHeight > rHeight {
+		return 1 + lHeight
+	}
+	return 1 + rHeight
+}
+
+func getBalanceFactor(n *node) int {
+	if n == nil {
+		return 0
+	}
+	return getHeight(n.Left) - getHeight(n.Right)
+}
+
+func (bt *BinarySearchTree) rebalance(newNode *node) {
+	if !bt.IsAvlTree() || newNode == nil {
 		return
 	}
 
+	for n := getParent(newNode); n != nil; n = getParent(n) {
+		bf := getBalanceFactor(n)
+		switch {
+		case bf > 1:
+			bfLeftChild := getBalanceFactor(n.Left)
+			if bfLeftChild == -1 {
+				bt.rotateLeft(n.Left)
+			}
+			bt.rotateRight(n)
+			return
+		case bf < -1:
+			bfRightChild := getBalanceFactor(n.Right)
+			if bfRightChild == 1 {
+				bt.rotateRight(n.Right)
+			}
+			bt.rotateLeft(n)
+			return
+		}
+	}
+}
+
+func (bt *BinarySearchTree) rotateLeft(n *node) *node {
+	if n == nil || n.Right == nil {
+		return n
+	}
+	nParent := n.parent
+	rightChild := n.Right
+	n.parent = rightChild
+	n.Right = rightChild.Left
+	rightChild.Left = n
+	rightChild.parent = nParent // now rightChild is in old n's place
+
+	if nParent == nil {
+		bt.root.node = rightChild
+	} else {
+		if nParent.Right == n {
+			nParent.Right = rightChild
+		} else {
+			nParent.Left = rightChild
+		}
+	}
+	return rightChild
+}
+
+func (bt *BinarySearchTree) rotateRight(n *node) *node {
+	if n == nil || n.Left == nil {
+		return n
+	}
+	nParent := n.parent
+	leftChild := n.Left
+	n.parent = leftChild
+	n.Left = leftChild.Right
+	leftChild.Right = n
+	leftChild.parent = nParent // now rightChild is in old n's place
+	if nParent == nil {
+		bt.root.node = leftChild
+	} else {
+		if nParent.Right == n {
+			nParent.Right = leftChild
+		} else {
+			nParent.Left = leftChild
+		}
+	}
+	return leftChild
 }
 
 // ToXML ...
 func (bt *BinarySearchTree) ToXML(w io.Writer) error {
+	const rootNodeName = "BinarySearchTree"
+
 	fmt.Fprintln(w, xml.Header)
-	fmt.Fprintf(w, "<BinarySearchTree isAVLTree=\"%v\" nodeCount=\"%d\">\n", bt.IsAvlTree(), bt.NodeCount)
+	fmt.Fprintf(w, "<%s", rootNodeName)
+	fmt.Fprintf(w, " isAVLTree=\"%v\"", bt.IsAvlTree())
+	fmt.Fprintf(w, " nodeCount=\"%d\"", bt.NodeCount)
+	fmt.Fprintf(w, " height=\"%d\"", getHeight(bt.root.node))
+	fmt.Fprintf(w, " balanceFactor=\"%d\"", getBalanceFactor(bt.root.node))
+	fmt.Fprintln(w, ">")
 
 	enc := xml.NewEncoder(w)
 	enc.Indent("\t", "\t")
@@ -109,13 +203,91 @@ func (bt *BinarySearchTree) ToXML(w io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintln(w, "\n</BinarySearchTree>")
+	fmt.Fprintf(w, "\n</%s>", rootNodeName)
 	return nil
+}
+
+// TraversalKind ...
+type TraversalKind uint
+
+// Depth-First traversal types
+const (
+	INORDER TraversalKind = iota
+	PREORDER
+	POSTORDER
+	BREADTHFIRST
+)
+
+func traverseInorder(w io.Writer, n *node) {
+	if n == nil {
+		return
+	}
+	traverseInorder(w, n.Left)
+	fmt.Fprintf(w, "%v ", n.Data)
+	traverseInorder(w, n.Right)
+}
+
+func traversePreorder(w io.Writer, n *node) {
+	if n == nil {
+		return
+	}
+	fmt.Fprintf(w, "%v ", n.Data)
+	traversePreorder(w, n.Left)
+	traversePreorder(w, n.Right)
+}
+
+func traversePostorder(w io.Writer, n *node) {
+	if n == nil {
+		return
+	}
+	traversePostorder(w, n.Left)
+	traversePostorder(w, n.Right)
+	fmt.Fprintf(w, "%v ", n.Data)
+}
+
+func traverseBreadthFirst(w io.Writer, root *node) {
+	queue := list.New()
+	if root != nil {
+		queue.PushBack(root)
+	}
+	for queue.Len() > 0 {
+		n := queue.Remove(queue.Front()).(*node)
+		fmt.Fprintf(w, "%v ", n.Data)
+
+		if n.Left != nil {
+			queue.PushBack(n.Left)
+		}
+		if n.Right != nil {
+			queue.PushBack(n.Right)
+		}
+	}
+}
+
+// Traverse ...
+func (bt *BinarySearchTree) Traverse(w io.Writer, k TraversalKind) {
+	switch k {
+	case INORDER:
+		fmt.Fprint(w, "Inorder Traversal      : ")
+		traverseInorder(w, bt.root.node)
+		fmt.Fprintln(w)
+	case PREORDER:
+		fmt.Fprint(w, "Preorder Traversal     : ")
+		traversePreorder(w, bt.root.node)
+		fmt.Fprintln(w)
+	case POSTORDER:
+		fmt.Fprint(w, "Postorder Traversal    : ")
+		traversePostorder(w, bt.root.node)
+		fmt.Fprintln(w)
+	case BREADTHFIRST:
+		fmt.Fprint(w, "Breadth-first Traversal: ")
+		traverseBreadthFirst(w, bt.root.node)
+		fmt.Fprintln(w)
+	}
 }
 
 // Run ...
 func Run() {
-	bst := NewBinarySearchTree(false, func(d1, d2 interface{}) int {
+	bst := NewBinarySearchTree(true, func(d1, d2 interface{}) int {
 		v1, v2 := d1.(int), d2.(int)
 		if v1 < v2 {
 			return -1
@@ -125,9 +297,14 @@ func Run() {
 			return 1
 		}
 	})
-
-	for _, n := range []int{1, 2, 3, 4, 5} {
-		bst.Add(n)
+	for i := 0; i < 15; i++ {
+		bst.Add(i + 1)
 	}
+
 	bst.ToXML(os.Stdout)
+	fmt.Println()
+	bst.Traverse(os.Stdout, INORDER)
+	bst.Traverse(os.Stdout, PREORDER)
+	bst.Traverse(os.Stdout, POSTORDER)
+	bst.Traverse(os.Stdout, BREADTHFIRST)
 }
