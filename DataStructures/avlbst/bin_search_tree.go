@@ -119,7 +119,7 @@ func (bt *BinarySearchTree) rebalance(newNode *node) {
 		return
 	}
 
-	for n := getParent(newNode); n != nil; n = getParent(n) {
+	for n := newNode; n != nil; n = getParent(n) {
 		bf := getBalanceFactor(n)
 		switch {
 		case bf > 1:
@@ -285,6 +285,95 @@ func (bt *BinarySearchTree) Traverse(w io.Writer, k TraversalKind) {
 	}
 }
 
+func (bt *BinarySearchTree) has(n *node, value interface{}) *node {
+	for n != nil {
+		switch bt.cmp(n.Data, value) {
+		case 0:
+			return n
+		case 1:
+			n = n.Left
+		case -1:
+			n = n.Right
+		}
+	}
+	return nil
+}
+
+// Has ...
+func (bt *BinarySearchTree) Has(value interface{}) bool {
+	return bt.has(bt.root.node, value) != nil
+}
+
+func getRightmostNode(n *node) (r *node) {
+	for ; n != nil; n = n.Right {
+		r = n
+	}
+	return
+}
+
+// RightmostValue ...
+func (bt *BinarySearchTree) RightmostValue() (rightmost interface{}) {
+	if r := getRightmostNode(bt.root.node); r != nil {
+		rightmost = r.Data
+	}
+	return
+}
+
+func getLeftmostNode(n *node) (l *node) {
+	for ; n != nil; n = n.Left {
+		l = n
+	}
+	return
+}
+
+// LeftmostValue ...
+func (bt *BinarySearchTree) LeftmostValue() (leftmost interface{}) {
+	if r := getLeftmostNode(bt.root.node); r != nil {
+		leftmost = r.Data
+	}
+	return
+}
+
+// Delete ....
+func (bt *BinarySearchTree) Delete(value interface{}) error {
+	n := bt.has(bt.root.node, value)
+	if n == nil {
+		return fmt.Errorf("value unavailable")
+	}
+
+	var replacingNode *node
+	if getHeight(n.Left) > getHeight(n.Right) {
+		replacingNode = getRightmostNode(n.Left)
+	} else {
+		replacingNode = getLeftmostNode(n.Right)
+	}
+	if replacingNode != nil {
+		if replacingNode.parent.Left == replacingNode {
+			replacingNode.parent.Left = nil
+		} else {
+			replacingNode.parent.Right = nil
+		}
+		bt.rebalance(replacingNode.parent)
+		replacingNode.parent = n.parent
+		replacingNode.Left = n.Left
+		replacingNode.Right = n.Right
+	}
+	if n.parent != nil {
+		if n == n.parent.Left {
+			n.parent.Left = replacingNode
+		} else {
+			n.parent.Right = replacingNode
+		}
+		bt.rebalance(n.parent)
+	}
+	if n == bt.root.node {
+		bt.root.node = replacingNode
+	}
+	n.Left, n.Right, n.parent = nil, nil, nil // orphaning the node to be deleted
+	bt.NodeCount--
+	return nil
+}
+
 // Run ...
 func Run() {
 	bst := NewBinarySearchTree(true, func(d1, d2 interface{}) int {
@@ -304,7 +393,14 @@ func Run() {
 	bst.ToXML(os.Stdout)
 	fmt.Println()
 	bst.Traverse(os.Stdout, INORDER)
-	bst.Traverse(os.Stdout, PREORDER)
-	bst.Traverse(os.Stdout, POSTORDER)
-	bst.Traverse(os.Stdout, BREADTHFIRST)
+	fmt.Println("Deleting 8...")
+	if err := bst.Delete(8); err != nil {
+		fmt.Println("ERROR:", err.Error())
+	} else {
+		bst.ToXML(os.Stdout)
+		bst.Traverse(os.Stdout, INORDER)
+	}
+	// bst.Traverse(os.Stdout, PREORDER)
+	// bst.Traverse(os.Stdout, POSTORDER)
+	// bst.Traverse(os.Stdout, BREADTHFIRST)
 }
