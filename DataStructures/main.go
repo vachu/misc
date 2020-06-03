@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/vachu/avlbst"
+	"github.com/vachu/hanoi"
 )
 
 //
 func main() {
-	avlbst.Run()
+	hanoi.Run()
 }
