@@ -147,7 +147,7 @@ func dumpTowers(padding string, towers ...*Tower) {
 // Run ...
 func Run() {
 	towerA, towerB, towerC := New("Tower A"), New("Tower B"), New("Tower C")
-	discCount := 5
+	discCount := 3
 	for i := 0; i < discCount; i++ {
 		towerA.Push(discCount - i)
 	}
@@ -156,7 +156,7 @@ func Run() {
 	dumpTowers("", towerA, towerB, towerC)
 	fmt.Println()
 
-	fmt.Printf("Goal: to move all the discs from '%s' to '%s'\n", towerA, towerC)
+	fmt.Printf("Goal: to move all the discs from '%s' to '%s'\n", towerA.name, towerC.name)
 	fmt.Println()
 
 	// IterativeSolution(towerA, towerC, towerB)
