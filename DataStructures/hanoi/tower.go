@@ -54,11 +54,6 @@ func (t *Tower) String() string {
 	return str
 }
 
-// RecursiveSolution ...
-func RecursiveSolution(src, dst, aux Tower) {
-
-}
-
 func makeLegalMove(stepCount int, t1, t2 *Tower) {
 	value1, _ := t1.Peek()
 	value2, _ := t2.Peek()
@@ -82,6 +77,39 @@ func makeLegalMove(stepCount int, t1, t2 *Tower) {
 	}
 }
 
+func recursiveSolution(discCount int, src, dst, aux *Tower, moveFn func(src, dst *Tower), dumpFn func()) {
+	if discCount == 1 {
+		moveFn(src, dst)
+		dumpFn()
+		return
+	}
+	recursiveSolution(discCount-1, src, aux, dst, moveFn, dumpFn)
+	recursiveSolution(1, src, dst, aux, moveFn, dumpFn)
+	recursiveSolution(discCount-1, aux, dst, src, moveFn, dumpFn)
+}
+
+// RecursiveSolution ...
+func RecursiveSolution(src, dst, aux *Tower) {
+	discCount := src.Len()
+	if discCount <= 0 || dst.Len() != 0 || aux.Len() != 0 {
+		panic("Illegal initial state of the Towers")
+	}
+
+	dumpFn := func() {
+		dumpTowers("\t", src, aux, dst)
+	}
+	stepCount := 0
+	moveFn := func(src, dst *Tower) {
+		stepCount++
+		srcLen := src.Len()
+		makeLegalMove(stepCount, src, dst)
+		if src.Len() > srcLen {
+			panic("Unexpected move made")
+		}
+	}
+	recursiveSolution(discCount, src, dst, aux, moveFn, dumpFn)
+}
+
 // IterativeSolution ...
 func IterativeSolution(src, dst, aux *Tower) {
 	if src == nil || aux == nil || dst == nil {
@@ -89,7 +117,7 @@ func IterativeSolution(src, dst, aux *Tower) {
 	}
 	discCount := src.Len()
 	if discCount == 0 || dst.Len() != 0 || aux.Len() != 0 {
-		return
+		panic("Illegal initial state of the Towers")
 	}
 
 	var t1, t2 *Tower
@@ -128,14 +156,11 @@ func Run() {
 	dumpTowers("", towerA, towerB, towerC)
 	fmt.Println()
 
-	fmt.Println("Goal: to move all the discs from Tower A to Tower C")
+	fmt.Printf("Goal: to move all the discs from '%s' to '%s'\n", towerA, towerC)
 	fmt.Println()
 
-	IterativeSolution(towerA, towerC, towerB)
-	fmt.Println()
+	// IterativeSolution(towerA, towerC, towerB)
+	RecursiveSolution(towerA, towerC, towerB)
 
-	fmt.Println("Final ...")
-	dumpTowers("", towerA, towerB, towerC)
-	fmt.Println("==== End ====")
-
+	fmt.Println("\n==== End ====")
 }
